@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "entry": "dist/mcp-http.js",
+  "env": {
+    "required": [
+      "BACKEND_URL",
+      "BACKEND_SERVICE_EMAIL",
+      "BACKEND_SERVICE_PASSWORD",
+      "MCP_AUTH_TOKEN"
+    ],
+    "optional": [
+      "BACKEND_TIMEOUT_MS",
+      "BACKEND_RETRIES",
+      "INVOKTA_HTTP_HOST",
+      "INVOKTA_HTTP_PORT",
+      "INVOKTA_HTTP_ALLOWED_HOSTS",
+      "INVOKTA_HTTP_ALLOWED_ORIGINS"
+    ]
+  },
+  "image": {
+    "baseImage": "node:22-slim",
+    "port": 3000
+  },
+  "healthcheck": {
+    "expect": "alive"
+  }
+}
