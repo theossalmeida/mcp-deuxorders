@@ -12,7 +12,7 @@
       hermes  -> hermes gateway run          (WhatsApp; parear ANTES, veja -Remove)
 
     O gateway do Hermes so deve ser registrado depois de `hermes whatsapp` ter sido
-    pareado uma vez de forma interativa — o QR nao aparece numa tarefa headless.
+    pareado uma vez de forma interativa -- o QR nao aparece numa tarefa headless.
 .EXAMPLE
     .\install-task.ps1 -Service mcp
 .EXAMPLE
@@ -57,10 +57,14 @@ $definitions = @{
     }
     hermes = @{
         TaskName = "DeuxOrders Hermes Gateway"
-        Execute  = (Join-Path $hermesHome "bin\hermes.exe")
-        Argument = "gateway run"
+        Execute  = "powershell.exe"
+        Argument = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'start-gateway.ps1')`""
         WorkDir  = $hermesHome
-        Descr    = "Gateway Hermes (WhatsApp) ligado ao MCP DeuxOrders."
+        Descr    = "Gateway Hermes (WhatsApp) ligado ao MCP DeuxOrders. Encerra sem reiniciar em falha terminal (logged out)."
+        # Sem reinicio pelo Agendador: o start-gateway.ps1 sai diferente de zero
+        # justamente para sinalizar "nao insista". Reiniciar aqui recriaria o loop
+        # contra o WhatsApp que o watchdog existe para cortar.
+        NoRestart = $true
     }
 }
 
@@ -106,14 +110,18 @@ foreach ($key in $targets) {
 
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 
-    $settings = New-ScheduledTaskSettingsSet `
-        -AllowStartIfOnBatteries `
-        -DontStopIfGoingOnBatteries `
-        -StartWhenAvailable `
-        -RestartInterval (New-TimeSpan -Minutes 1) `
-        -RestartCount 3 `
-        -ExecutionTimeLimit ([TimeSpan]::Zero) `
-        -MultipleInstances IgnoreNew
+    $settingsArgs = @{
+        AllowStartIfOnBatteries    = $true
+        DontStopIfGoingOnBatteries = $true
+        StartWhenAvailable         = $true
+        ExecutionTimeLimit         = [TimeSpan]::Zero
+        MultipleInstances          = "IgnoreNew"
+    }
+    if (-not $def.ContainsKey("NoRestart")) {
+        $settingsArgs.RestartInterval = New-TimeSpan -Minutes 1
+        $settingsArgs.RestartCount = 3
+    }
+    $settings = New-ScheduledTaskSettingsSet @settingsArgs
 
     $principal = if ($script:elevated) {
         New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Limited
