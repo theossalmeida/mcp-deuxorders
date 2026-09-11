@@ -2,13 +2,8 @@ import { defineCapability } from "@invokta/core";
 import { z } from "zod";
 
 import type { BackendGateway } from "../application/ports.js";
-import { isoDate, orderStatus, uuid } from "./shared.js";
-
-const range = {
-  createdAtFrom: isoDate.optional().describe("Data de criação inicial, inclusiva."),
-  createdAtTo: isoDate.optional().describe("Data de criação final, exclusiva."),
-  status: orderStatus.optional(),
-};
+import { uuid } from "./shared.js";
+import { orderPeriodFields as range, validOrderPeriod, orderPeriodValidation } from "./order-filters.js";
 
 const topProductList = z.object({
   products: z.array(
@@ -37,8 +32,8 @@ export function createDashboardCapabilities(backend: BackendGateway) {
   const summary = defineCapability({
     title: "Resumo do período",
     description:
-      "Métricas agregadas de pedidos num intervalo: receita, valor de tabela, desconto, contagens por situação e ticket médio. Todos os valores em centavos. Pedidos cancelados ficam fora da receita e são contados à parte.",
-    input: z.object(range),
+      "Receita/faturamento e métricas de pedidos por data de entrega (padrão); use dateField=CreatedAt somente quando pedirem data de criação. from/to são dias inclusivos. Valores em centavos. totalRevenue é o valor após descontos, incluindo pedidos pagos e não pagos. Cancelados ficam fora de totalRevenue e totalOrders e são contados à parte em canceledOrders. Permite cliente, situação e pagamento.",
+    input: z.strictObject(range).refine(validOrderPeriod, orderPeriodValidation),
     output: z.looseObject({
       totalRevenue: z.number().int(),
       totalValue: z.number().int(),
@@ -62,8 +57,8 @@ export function createDashboardCapabilities(backend: BackendGateway) {
   const revenueOverTime = defineCapability({
     title: "Receita por dia",
     description:
-      "Receita e número de pedidos por dia no fuso de São Paulo. Dias sem pedidos são omitidos. Valores em centavos.",
-    input: z.object(range),
+      "Receita e número de pedidos por dia de entrega (padrão), no fuso de São Paulo. dateField=CreatedAt filtra e agrupa por criação. Mesmas regras do resumo; dias sem pedidos são omitidos. Valores em centavos. Para o total do período, use o resumo agregado.",
+    input: z.strictObject(range).refine(validOrderPeriod, orderPeriodValidation),
     output: z.object({
       dataPoints: z.array(
         z.looseObject({
@@ -86,8 +81,8 @@ export function createDashboardCapabilities(backend: BackendGateway) {
   const topProducts = defineCapability({
     title: "Produtos mais vendidos",
     description:
-      "Ranking de produtos por receita no período, ignorando pedidos e itens cancelados. Valores em centavos.",
-    input: z.object({ ...range, limit: z.number().int().min(1).max(100).default(10) }),
+      "Ranking de produtos por receita no período de entrega (padrão); dateField=CreatedAt usa criação. Ignora pedidos e itens cancelados. Valores em centavos. Permite cliente, situação e pagamento; limit controla o tamanho do ranking.",
+    input: z.strictObject({ ...range, limit: z.number().int().min(1).max(100).default(10) }).refine(validOrderPeriod, orderPeriodValidation),
     output: topProductList,
     access: "authenticated",
     annotations: { readOnly: true, destructive: false, idempotent: true, openWorld: false },
@@ -103,8 +98,8 @@ export function createDashboardCapabilities(backend: BackendGateway) {
   const topClients = defineCapability({
     title: "Clientes que mais compraram",
     description:
-      "Ranking de clientes por receita no período, ignorando pedidos cancelados. Valores em centavos.",
-    input: z.object({ ...range, limit: z.number().int().min(1).max(100).default(10) }),
+      "Ranking de clientes por receita no período de entrega (padrão); dateField=CreatedAt usa criação. Ignora pedidos cancelados. Valores em centavos. Permite situação e pagamento; limit controla o tamanho do ranking.",
+    input: z.strictObject({ ...range, limit: z.number().int().min(1).max(100).default(10) }).refine(validOrderPeriod, orderPeriodValidation),
     output: topClientList,
     access: "authenticated",
     annotations: { readOnly: true, destructive: false, idempotent: true, openWorld: false },
@@ -120,13 +115,11 @@ export function createDashboardCapabilities(backend: BackendGateway) {
   const exportOrders = defineCapability({
     title: "Exportar pedidos",
     description:
-      "Gera o relatório oficial de pedidos do DeuxOrders em CSV ou PDF, uma linha por item não cancelado, filtrado por data de entrega. O arquivo volta codificado em base64. Limites do backend: 10000 linhas em CSV e 2000 em PDF.",
-    input: z.object({
-      from: isoDate.optional().describe("Data de entrega inicial, inclusiva."),
-      to: isoDate.optional().describe("Data de entrega final, inclusiva."),
-      status: orderStatus.optional(),
+      "Gera o relatório oficial de pedidos em CSV/PDF por entrega (padrão) ou criação (dateField=CreatedAt), com filtros de cliente, situação e pagamento. Uma linha por item não cancelado; segue as regras da exportação do SaaS. O arquivo volta em base64: entregue como arquivo, não reproduza o base64 na conversa. Limites: 10000 linhas CSV e 2000 PDF.",
+    input: z.strictObject({
+      ...range,
       format: z.enum(["csv", "pdf"]).default("csv"),
-    }),
+    }).refine(validOrderPeriod, orderPeriodValidation),
     output: z.object({
       fileName: z.string(),
       contentType: z.string(),

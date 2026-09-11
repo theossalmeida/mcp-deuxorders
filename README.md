@@ -79,6 +79,29 @@ npm run cli -- run clients.search --input '{"search":"maria"}'
 
 ## Capabilities
 
+### Datas, receita e Hermes
+
+Pedidos, métricas do dashboard, rankings e exportações recebem `from`/`to` como
+dias inclusivos (`AAAA-MM-DD`, fuso `America/Sao_Paulo`) e `dateField`:
+`DeliveryDate` é o padrão; `CreatedAt` seleciona a criação quando solicitada.
+Os filtros opcionais `clientId`, `status` e `isPaid` podem ser combinados.
+`orders.search` também aceita `productId` para pedidos que contêm um item ativo
+do produto. `products.stats` aceita `month` e `dateField`.
+
+Receita segue `totalRevenue`, após descontos e sem pedidos cancelados; omitir
+`isPaid` inclui pedidos pagos e não pagos. Caixa mantém a data de competência
+dos lançamentos. As regras de escrita e os cálculos continuam no backend.
+
+O prompt do bot está em [HERMES_SOUL.md](./HERMES_SOUL.md). No Hermes, use o
+provedor nativo `gemini`, modelo `gemini-3.5-flash-lite`, raciocínio `low` e
+endpoint `https://generativelanguage.googleapis.com/v1beta`. A chave pertence ao
+`.env` do Hermes (`GOOGLE_API_KEY`), não ao código ou ao prompt.
+
+Publique primeiro o backend com suporte a `from/to/dateField`, depois reconstrua
+e reinicie MCP e Hermes. Os antigos campos de tools `createdAtFrom/To` e
+`deliveryFrom/To` são rejeitados para evitar consultas sem o filtro pretendido.
+O backend preserva os parâmetros `deliveryDateFrom/To` usados pelo SaaS.
+
 53 capabilities em 7 domínios. O mapeamento completo com os endpoints de origem está em [`MCP_CAPABILITY_MAP.md`](./MCP_CAPABILITY_MAP.md).
 
 | Domínio | Capabilities |

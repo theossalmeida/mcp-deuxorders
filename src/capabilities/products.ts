@@ -96,10 +96,11 @@ export function createProductCapabilities(backend: BackendGateway) {
   const stats = defineCapability({
     title: "Vendas do produto no mês",
     description:
-      "Quantidade vendida e receita em centavos de um produto num mês, considerando a data de criação do pedido e ignorando cancelados.",
+      "Quantidade vendida e receita em centavos de um produto num mês de entrega (padrão), ignorando pedidos e itens cancelados. Use dateField=CreatedAt somente quando pedirem por criação. Mês no fuso de São Paulo.",
     input: z.object({
       productId: uuid,
       month: z.string().regex(/^\d{4}-\d{2}$/u, "Use o formato YYYY-MM."),
+      dateField: z.enum(["DeliveryDate", "CreatedAt"]).default("DeliveryDate"),
     }),
     output: z.looseObject({
       soldThisMonth: z.number().int(),
@@ -112,7 +113,7 @@ export function createProductCapabilities(backend: BackendGateway) {
         {
           method: "GET",
           path: `/api/v1/products/${input.productId}/stats`,
-          query: { month: input.month },
+          query: { month: input.month, dateField: input.dateField },
         },
         { signal: context.signal },
       );

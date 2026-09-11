@@ -2,6 +2,7 @@ import { defineCapability } from "@invokta/core";
 import { z } from "zod";
 
 import type { BackendGateway } from "../application/ports.js";
+import { orderPeriodFields, validOrderPeriod, orderPeriodValidation } from "./order-filters.js";
 import {
   isoDate,
   normalizeOrderResult,
@@ -45,15 +46,14 @@ export function createOrderCapabilities(backend: BackendGateway) {
   const search = defineCapability({
     title: "Buscar pedidos",
     description:
-      "Lista pedidos do DeuxOrders filtrando por situação, intervalo de data de entrega e texto livre (id do pedido ou nome do cliente). Ordenado do mais recente para o mais antigo.",
-    input: z.object({
+      "Lista pedidos por entrega (padrão) ou criação (dateField=CreatedAt), com from/to inclusivos. Permite situação, cliente, pagamento, produto ativo no pedido e texto livre (id do pedido ou nome do cliente). Inclui cancelados se status for omitido; ordenado por criação, do mais recente ao mais antigo. Paginação: totalCount é o total filtrado, items é somente a página atual.",
+    input: z.strictObject({
+      ...orderPeriodFields,
       search: z.string().trim().min(1).optional(),
-      status: orderStatus.optional(),
-      deliveryFrom: isoDate.optional().describe("Data de entrega inicial, inclusiva."),
-      deliveryTo: isoDate.optional().describe("Data de entrega final, inclusiva."),
+      productId: uuid.optional().describe("Pedidos que contêm este produto em item não cancelado; os totais retornados são do pedido inteiro."),
       page,
       size: pageSize(100, 10),
-    }),
+    }).refine(validOrderPeriod, orderPeriodValidation),
     output: paged(order),
     access: "authenticated",
     annotations: { readOnly: true, destructive: false, idempotent: true, openWorld: false },
@@ -62,14 +62,7 @@ export function createOrderCapabilities(backend: BackendGateway) {
         {
           method: "GET",
           path: "/api/v1/orders/all",
-          query: {
-            search: input.search,
-            status: input.status,
-            from: input.deliveryFrom,
-            to: input.deliveryTo,
-            page: input.page,
-            size: input.size,
-          },
+          query: { ...input },
         },
         { signal: context.signal },
       );
@@ -95,7 +88,7 @@ export function createOrderCapabilities(backend: BackendGateway) {
   const create = defineCapability({
     title: "Criar pedido",
     description:
-      "Cria um pedido para um cliente ativo com pelo menos um item. Preços são em centavos e podem divergir do catálogo — o preço do produto continua sendo a base para desconto. O pedido nasce com situação Received.",
+      "Cria um pedido em produção para um cliente ativo com pelo menos um item. Chame somente após apresentar o resumo e receber a confirmação da criação em uma mensagem seguinte do administrador. Preparar um pedido ou confirmar dados do cliente/produto não autoriza esta chamada. Preços são em centavos e podem divergir do catálogo — o preço do produto continua sendo a base para desconto. O pedido nasce com situação Received.",
     input: z.object({
       clientId: uuid,
       deliveryDate: isoDate,

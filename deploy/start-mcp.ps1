@@ -72,7 +72,7 @@ while ($true) {
     # stderr num NativeCommandError e, com ErrorActionPreference Stop, a
     # primeira linha que o MCP escreve ("MCP endpoint: ...") mata o script.
     $proc = Start-Process -FilePath "node" -ArgumentList $entry `
-        -NoNewWindow -PassThru -Wait `
+        -WindowStyle Hidden -PassThru -Wait `
         -RedirectStandardOutput $stdoutLog `
         -RedirectStandardError $stderrLog
     $code = $proc.ExitCode

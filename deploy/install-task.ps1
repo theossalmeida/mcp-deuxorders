@@ -7,8 +7,8 @@
     NAO resolve, porque na sessao interativa o node abre um console proprio.
 
     Servicos:
-      mcp     -> deploy/start-mcp.ps1        (MCP em 127.0.0.1:3000)
-      ollama  -> ollama serve                (modelo local em 127.0.0.1:11434)
+      mcp     -> deploy/start-mcp.ps1        (MCP em 127.0.0.1:3100)
+      ollama  -> opcional, apenas quando solicitado explicitamente
       hermes  -> hermes gateway run          (WhatsApp; parear ANTES, veja -Remove)
 
     O gateway do Hermes so deve ser registrado depois de `hermes whatsapp` ter sido
@@ -46,7 +46,7 @@ $definitions = @{
         Execute  = "powershell.exe"
         Argument = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'start-mcp.ps1')`""
         WorkDir  = $repoRoot
-        Descr    = "MCP DeuxOrders em 127.0.0.1:3000 para o Hermes."
+        Descr    = "MCP DeuxOrders em 127.0.0.1:3100 para o Hermes."
     }
     ollama = @{
         TaskName = "DeuxOrders Ollama"
@@ -68,7 +68,9 @@ $definitions = @{
     }
 }
 
-$targets = if ($Service -eq "all") { $definitions.Keys } else { @($Service) }
+$targets = if ($Service -eq "all") {
+    if ($Remove) { $definitions.Keys } else { @("mcp", "hermes") }
+} else { @($Service) }
 
 foreach ($key in $targets) {
     $def = $definitions[$key]

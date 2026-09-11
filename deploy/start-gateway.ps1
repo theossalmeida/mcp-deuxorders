@@ -22,6 +22,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $hermesHome = Join-Path $env:LOCALAPPDATA "hermes"
+$env:HERMES_HOME = $hermesHome
 $hermesExe = Join-Path $hermesHome "bin\hermes.exe"
 $bridgeLog = Join-Path $hermesHome "whatsapp\bridge.log"
 $watchLog = Join-Path $hermesHome "logs\gateway-watchdog.log"
@@ -40,7 +41,7 @@ $terminalPattern = 'logged_out|Logged out\.'
 Write-Watch "iniciando gateway (baseline do bridge.log: $baseline bytes)"
 
 $proc = Start-Process -FilePath $hermesExe -ArgumentList "gateway run" `
-    -NoNewWindow -PassThru `
+    -WindowStyle Hidden -PassThru `
     -RedirectStandardOutput (Join-Path $hermesHome "logs\gateway.out.log") `
     -RedirectStandardError (Join-Path $hermesHome "logs\gateway.err.log")
 
@@ -59,10 +60,10 @@ try {
         if ($tail -match $terminalPattern) {
             Write-Watch "FALHA TERMINAL: sessao do WhatsApp invalidada (logged out)."
             Write-Watch "Encerrando o gateway sem reiniciar -- repareie com 'hermes whatsapp'."
-            try { $proc.Kill() } catch { Write-Watch "kill falhou: $_" }
-            Get-Process node -ErrorAction SilentlyContinue |
-                Where-Object { $_.Id -ne $PID } |
-                Stop-Process -Force -ErrorAction SilentlyContinue
+            # Encerra apenas os descendentes deste gateway, incluindo a bridge.
+            # Outros processos Node (MCP, frontend etc.) nao pertencem a ele.
+            try { & taskkill.exe /PID $proc.Id /T /F | Out-Null }
+            catch { Write-Watch "kill falhou: $_" }
             exit 2
         }
     }

@@ -42,8 +42,8 @@ function count(page) {
 
 const today = new Date();
 const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-const iso = (date) => date.toISOString();
-const month = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}`;
+const iso = (date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(date);
+const month = iso(today).slice(0, 7);
 
 const clients = await check("clients.search", { page: 1, size: 3 }, count);
 const orders = await check("orders.search", { page: 1, size: 3 }, count);
@@ -60,22 +60,22 @@ await check("cash.summary", { from: iso(monthAgo), to: iso(today) }, (out) =>
   `saldo ${out.netBalanceCents}`,
 );
 
-await check("dashboard.summary", { createdAtFrom: iso(monthAgo), createdAtTo: iso(today) }, (out) =>
+await check("dashboard.summary", { from: iso(monthAgo), to: iso(today) }, (out) =>
   `${out.totalOrders} pedidos`,
 );
 await check(
   "dashboard.revenue-over-time",
-  { createdAtFrom: iso(monthAgo), createdAtTo: iso(today) },
+  { from: iso(monthAgo), to: iso(today) },
   (out) => `${out.dataPoints.length} dias`,
 );
 await check(
   "dashboard.top-products",
-  { createdAtFrom: iso(monthAgo), createdAtTo: iso(today), limit: 5 },
+  { from: iso(monthAgo), to: iso(today), limit: 5 },
   (out) => `${out.products.length}`,
 );
 await check(
   "dashboard.top-clients",
-  { createdAtFrom: iso(monthAgo), createdAtTo: iso(today), limit: 5 },
+  { from: iso(monthAgo), to: iso(today), limit: 5 },
   (out) => `${out.clients.length}`,
 );
 await check("dashboard.export-orders", { from: iso(monthAgo), to: iso(today), format: "csv" }, (out) =>
