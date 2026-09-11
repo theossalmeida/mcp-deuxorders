@@ -33,7 +33,15 @@ platform_toolsets:
 Mescle esses campos na configuração existente, preservando MCP, WhatsApp e a
 lista de administradores autorizados. Em `%LOCALAPPDATA%\hermes\.env`, configure
 `GOOGLE_API_KEY` em uma linha ativa, sem `#`. A chave não pertence ao repositório.
-Copie `HERMES_SOUL.md` para `%LOCALAPPDATA%\hermes\SOUL.md`.
+Instale o prompt com o Python do Hermes:
+
+```powershell
+& "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe" deploy/sync-hermes-prompt.py
+```
+
+O script copia `HERMES_SOUL.md`, guarda backup e invalida somente os prompts
+salvos das conversas ativas de WhatsApp. O histórico é preservado. Apenas
+copiar SOUL ou reiniciar o gateway não atualiza o prompt salvo dessas conversas.
 
 O MCP lê seu próprio `.env` para autenticar no backend e atender o Hermes em
 `http://127.0.0.1:3100/mcp`. O gateway mantém a configuração de bearer token

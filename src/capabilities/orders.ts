@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { BackendGateway } from "../application/ports.js";
 import { orderPeriodFields, validOrderPeriod, orderPeriodValidation } from "./order-filters.js";
+import { resolveOrderQuery, resolvedPeriodSchema, withResolvedPeriod } from "./business-period.js";
 import {
   isoDate,
   normalizeOrderResult,
@@ -43,6 +44,7 @@ const desiredItem = z.object({
 });
 
 export function createOrderCapabilities(backend: BackendGateway) {
+  const searchOutput = paged(order).extend({ resolvedPeriod: resolvedPeriodSchema.optional() });
   const search = defineCapability({
     title: "Buscar pedidos",
     description:
@@ -54,18 +56,20 @@ export function createOrderCapabilities(backend: BackendGateway) {
       page,
       size: pageSize(100, 10),
     }).refine(validOrderPeriod, orderPeriodValidation),
-    output: paged(order),
+    output: searchOutput,
     access: "authenticated",
     annotations: { readOnly: true, destructive: false, idempotent: true, openWorld: false },
     async run({ input, context }) {
-      return backend.send(
+      const { query, resolvedPeriod } = resolveOrderQuery(input);
+      const result = await backend.send<z.infer<typeof searchOutput>>(
         {
           method: "GET",
           path: "/api/v1/orders/all",
-          query: { ...input },
+          query,
         },
         { signal: context.signal },
       );
+      return withResolvedPeriod(result, resolvedPeriod);
     },
   });
 

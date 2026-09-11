@@ -88,6 +88,13 @@ Os filtros opcionais `clientId`, `status` e `isPaid` podem ser combinados.
 `orders.search` também aceita `productId` para pedidos que contêm um item ativo
 do produto. `products.stats` aceita `month` e `dateField`.
 
+Para períodos relativos, envie `period` sem `from/to`: `today`, `yesterday`,
+`this_week`, `last_week`, `this_month`, `last_month`, `this_year`, `last_year` ou
+`last_n_days` com `days`. O MCP calcula as datas pelo relógio de São Paulo em
+cada chamada e devolve `resolvedPeriod` com o intervalo aplicado. Semana atual
+vai de segunda até hoje; mês/ano atual começa no primeiro dia e termina hoje.
+Semana/mês/ano anterior inclui o período anterior inteiro.
+
 Receita segue `totalRevenue`, após descontos e sem pedidos cancelados; omitir
 `isPaid` inclui pedidos pagos e não pagos. Caixa mantém a data de competência
 dos lançamentos. As regras de escrita e os cálculos continuam no backend.
