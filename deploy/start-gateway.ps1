@@ -72,5 +72,7 @@ try {
     exit $proc.ExitCode
 }
 finally {
-    if (-not $proc.HasExited) { try { $proc.Kill() } catch { } }
+    if (-not $proc.HasExited) {
+        try { & taskkill.exe /PID $proc.Id /T /F | Out-Null } catch { }
+    }
 }

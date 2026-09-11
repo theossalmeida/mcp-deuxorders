@@ -14,6 +14,9 @@ model:
 agent:
   reasoning_effort: low
   max_turns: 40
+tools:
+  tool_search:
+    enabled: 'off'
 auxiliary:
   compression:
     provider: gemini
@@ -36,6 +39,10 @@ O MCP lê seu próprio `.env` para autenticar no backend e atender o Hermes em
 `http://127.0.0.1:3100/mcp`. O gateway mantém a configuração de bearer token
 existente. O Ollama não é necessário para o Gemini.
 
+As 53 ferramentas são enviadas diretamente ao modelo. Desativar `tool_search`
+evita rodadas adicionais de busca, descrição e chamada indireta no Hermes;
+o Gemini recebe o schema completo da operação que vai executar.
+
 Depois que o backend com os filtros atualizados estiver publicado:
 
 ```powershell
@@ -46,6 +53,11 @@ npm run smoke
 Start-ScheduledTask -TaskName 'DeuxOrders MCP'
 Start-ScheduledTask -TaskName 'DeuxOrders Hermes Gateway'
 ```
+
+Se os serviços já estiverem rodando, use `deploy/restart-stack.ps1` (ou
+`-Service mcp` / `-Service hermes`). Parar somente a tarefa agendada pode deixar
+o processo filho antigo ocupando a porta. O script identifica os processos
+pelos caminhos desta instalação e encerra suas árvores antes de iniciar.
 
 As tarefas existentes executam `deploy/start-mcp.ps1` e
 `deploy/start-gateway.ps1`, com logs no diretório `logs` de cada serviço. Para
