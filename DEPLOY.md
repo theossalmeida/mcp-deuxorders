@@ -1,0 +1,80 @@
+# Hermes com Gemini no Windows
+
+O backend publica pelo workflow `DeuxERP CI`: push em `main`, testes de unidade
+e integração com PostgreSQL e, se aprovados, deploy no Fly.io. Não é necessário
+autenticar o Fly.io neste Windows.
+
+O Hermes usa `%LOCALAPPDATA%\hermes\config.yaml`:
+
+```yaml
+model:
+  default: gemini-3.5-flash-lite
+  provider: gemini
+  base_url: https://generativelanguage.googleapis.com/v1beta
+agent:
+  reasoning_effort: low
+  max_turns: 40
+tools:
+  tool_search:
+    enabled: 'off'
+auxiliary:
+  compression:
+    provider: gemini
+    model: gemini-3.5-flash-lite
+    reasoning_effort: low
+platform_toolsets:
+  whatsapp:
+    - mcp-deuxorders
+    - code_execution
+    - file
+    - terminal
+```
+
+Mescle esses campos na configuração existente, preservando MCP, WhatsApp e a
+lista de administradores autorizados. Em `%LOCALAPPDATA%\hermes\.env`, configure
+`GOOGLE_API_KEY` em uma linha ativa, sem `#`. A chave não pertence ao repositório.
+Instale o prompt com o Python do Hermes:
+
+```powershell
+& "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe" deploy/sync-hermes-prompt.py
+```
+
+O script copia `HERMES_SOUL.md`, guarda backup e invalida somente os prompts
+salvos das conversas ativas de WhatsApp. O histórico é preservado. Apenas
+copiar SOUL ou reiniciar o gateway não atualiza o prompt salvo dessas conversas.
+
+O MCP lê seu próprio `.env` para autenticar no backend e atender o Hermes em
+`http://127.0.0.1:3100/mcp`. O gateway mantém a configuração de bearer token
+existente. O Ollama não é necessário para o Gemini.
+
+As 53 ferramentas são enviadas diretamente ao modelo. Desativar `tool_search`
+evita rodadas adicionais de busca, descrição e chamada indireta no Hermes;
+o Gemini recebe o schema completo da operação que vai executar.
+
+Depois que o backend com os filtros atualizados estiver publicado:
+
+```powershell
+npm run typecheck
+npm test
+npm run build
+npm run smoke
+Start-ScheduledTask -TaskName 'DeuxOrders MCP'
+Start-ScheduledTask -TaskName 'DeuxOrders Hermes Gateway'
+```
+
+Se os serviços já estiverem rodando, use `deploy/restart-stack.ps1` (ou
+`-Service mcp` / `-Service hermes`). Parar somente a tarefa agendada pode deixar
+o processo filho antigo ocupando a porta. O script identifica os processos
+pelos caminhos desta instalação e encerra suas árvores antes de iniciar.
+
+As tarefas existentes executam `deploy/start-mcp.ps1` e
+`deploy/start-gateway.ps1`, com logs no diretório `logs` de cada serviço. Para
+instalação nova, execute `deploy/install-task.ps1 -Service all`; ele instala
+somente MCP e Hermes. A opção `-Service ollama` permanece disponível para uso
+local explícito. O WhatsApp deve estar pareado antes de iniciar o gateway.
+
+O watchdog encerra a árvore do gateway se o WhatsApp invalidar a sessão; nesse
+caso é necessário parear novamente. Ele não encerra outros processos Node.
+
+Valide consultas de faturamento por entrega e por criação, comparando os
+mesmos filtros do SaaS. Não crie pedidos reais apenas para testar a migração.

@@ -65,6 +65,7 @@ export const orderItem = z.looseObject({
 
 export const order = z.looseObject({
   id: uuid,
+  createdAt: isoDate.optional(),
   deliveryDate: isoDate,
   status: z.string(),
   clientId: uuid,
